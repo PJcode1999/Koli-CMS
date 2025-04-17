@@ -1,0 +1,65 @@
+<li class="nav-item">
+    <div class="form-group text-center">
+        <form id="clock_form" method="post" action="{% url 'clock_action' %}">
+            {% csrf_token %}
+            <input type="hidden" name="clock_action" id="clock_action_input">
+
+            {% if latest_clockin and not latest_clockout or latest_clockin > latest_clockout %}
+                <!-- User is clocked in -->
+                <button type="button" class="btn btn-danger" onclick="submitClockAction('ClockOut')">Clock Out</button>
+            {% else %}
+                <!-- User is clocked out -->
+                <button type="button" class="btn btn-success" onclick="submitClockAction('ClockIn')">Clock In</button>
+            {% endif %}
+        </form>
+    </div>
+</li>
+
+<!-- Timer Display if Clocked In -->
+{% if latest_clockin and not latest_clockout or latest_clockin > latest_clockout %}
+    <li class="nav-item">
+        <span class="nav-link text-info">
+            <i class="fas fa-hourglass-start"></i>
+            Working Time: <span id="working_duration"></span>
+        </span>
+    </li>
+
+    <script>
+        let workingInterval;
+
+        function updateWorkingDuration(startTime) {
+            const start = new Date(startTime);
+            workingInterval = setInterval(() => {
+                const now = new Date();
+                let diff = Math.floor((now - start) / 1000);
+                const hours = Math.floor(diff / 3600);
+                diff %= 3600;
+                const minutes = Math.floor(diff / 60);
+                const seconds = diff % 60;
+                document.getElementById("working_duration").innerText =
+                    `${hours}h ${minutes}m ${seconds}s`;
+            }, 1000);
+        }
+
+        function stopWorkingDuration() {
+            if (workingInterval) {
+                clearInterval(workingInterval);
+            }
+        }
+
+        updateWorkingDuration("{{ latest_clockin|date:'c' }}");
+    </script>
+{% endif %}
+
+<!-- Shared Clock Action JS -->
+<script>
+    function submitClockAction(action) {
+        if (confirm(`Are you sure you want to ${action}?`)) {
+            if (action === 'ClockOut') {
+                stopWorkingDuration();  // clear interval if exists
+            }
+            document.getElementById('clock_action_input').value = action;
+            document.getElementById('clock_form').submit();
+        }
+    }
+</script>

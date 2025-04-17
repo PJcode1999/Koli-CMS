@@ -1,0 +1,241 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+	<div class="container-fluid">
+		<div class="row">
+			{% for key,value in summary.items %}
+			<!-- Total Clocked Hours -->
+			<div class="col-lg-3 col-6">
+				<div class="small-box bg-info">
+					<div class="inner">
+						<h3>{{ value }}</h3>
+						<p>{{ key }}</p>
+					</div>
+					<div class="icon">
+						<i class="ion ion-clock"></i>
+					</div>
+				</div>
+			</div>
+			{% endfor %}
+			<!-- Total Attendance -->
+			<div class="col-lg-3 col-6">
+				<div class="small-box bg-info">
+					<div class="inner">
+						<h3>{{ total_attendance }}</h3>
+						<p>Total Attendance</p>
+					</div>
+					<div class="icon">
+						<i class="ion ion-bag"></i>
+					</div>
+				</div>
+			</div>
+
+			<!-- Percentage Present -->
+			<div class="col-lg-3 col-6">
+				<div class="small-box bg-success">
+					<div class="inner">
+						<h3>{{ percent_present }}<sup style="font-size: 20px">%</sup></h3>
+						<p>Percentage Present</p>
+					</div>
+					<div class="icon">
+						<i class="ion ion-person-add"></i>
+					</div>
+				</div>
+			</div>
+
+			<!-- Percentage Absent -->
+			<div class="col-lg-3 col-6">
+				<div class="small-box bg-danger">
+					<div class="inner">
+						<h3>{{ percent_absent }}<sup style="font-size: 20px">%</sup></h3>
+						<p>Percentage Absent</p>
+					</div>
+					<div class="icon">
+						<i class="ion ion-stats-bars"></i>
+					</div>
+				</div>
+			</div>
+
+			<!-- Total Department -->
+			<div class="col-lg-3 col-6">
+				<div class="small-box bg-warning">
+					<div class="inner">
+						<h3>{{ total_department }}</h3>
+						<p>Total Department</p>
+					</div>
+					<div class="icon">
+						<i class="ion ion-pie-graph"></i>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Charts -->
+		<div class="row">
+			<!-- Donut Chart -->
+			<div class="col-lg-6">
+				<div class="card card-secondary">
+					<div class="card-header">
+						<h3 class="card-title">{{ page_title }}</h3>
+						<div class="card-tools">
+							<button type="button" class="btn btn-tool" data-card-widget="collapse"><i
+									class="fas fa-minus"></i></button>
+							<button type="button" class="btn btn-tool" data-card-widget="remove"><i
+									class="fas fa-times"></i></button>
+						</div>
+					</div>
+					<div class="card-body">
+						<canvas id="attendanceData" style="height: 250px; max-width: 100%;"></canvas>
+					</div>
+				</div>
+			</div>
+
+			<!-- Bar Chart -->
+			<div class="col-lg-6">
+				<div class="card card-secondary">
+					<div class="card-header">
+						<h3 class="card-title">{{ page_title }}</h3>
+						<div class="card-tools">
+							<button type="button" class="btn btn-tool" data-card-widget="collapse"><i
+									class="fas fa-minus"></i></button>
+							<button type="button" class="btn btn-tool" data-card-widget="remove"><i
+									class="fas fa-times"></i></button>
+						</div>
+					</div>
+					<div class="card-body">
+						<canvas id="attendanceStatistics" style="height: 250px; max-width: 100%;"></canvas>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+{% endblock content %}
+
+{% block custom_js %}
+<script>
+	$(document).ready(function () {
+		var departments = {{ data_name| safe
+	}};
+	var data_present = {{ data_present| safe }};
+	var data_absent = {{ data_absent| safe }};
+
+	// Donut Chart
+	var donutCtx = document.getElementById('attendanceData').getContext('2d');
+	new Chart(donutCtx, {
+		type: 'doughnut',
+		data: {
+			labels: ['Present', 'Absent'],
+			datasets: [{
+				data: [{{ percent_present }}, {{ percent_absent }}],
+		backgroundColor: ['#00a65a', '#f56954']
+	}]
+            },
+		options: {
+		maintainAspectRatio: false,
+		responsive: true
+	}
+        });
+
+	// Bar Chart
+	var barCtx = document.getElementById('attendanceStatistics').getContext('2d');
+	new Chart(barCtx, {
+		type: 'bar',
+		data: {
+			labels: departments,
+			datasets: [
+				{
+					label: 'Present In Class',
+					backgroundColor: 'rgba(60,141,188,0.9)',
+					borderColor: 'rgba(60,141,188,0.8)',
+					data: data_present
+				},
+				{
+					label: 'Absent In Class',
+					backgroundColor: 'rgba(210,214,222,1)',
+					borderColor: 'rgba(210,214,222,1)',
+					data: data_absent
+				}
+			]
+		},
+		options: {
+			responsive: true,
+			maintainAspectRatio: false
+		}
+	});
+});
+</script>
+
+<!-- Firebase Integration -->
+<script src="https://www.gstatic.com/firebasejs/7.23.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/7.23.0/firebase-analytics.js"></script>
+<script src="https://www.gstatic.com/firebasejs/7.22.1/firebase-messaging.js"></script>
+
+<script>
+	var firebaseConfig = {
+		apiKey: "AIzaSyBarDWWHTfTMSrtc5Lj3Cdw5dEvjAkFwtM",
+		authDomain: "sms-with-django.firebaseapp.com",
+		databaseURL: "https://sms-with-django.firebaseio.com",
+		projectId: "sms-with-django",
+		storageBucket: "sms-with-django.appspot.com",
+		messagingSenderId: "945324593139",
+		appId: "1:945324593139:web:03fa99a8854bbd38420c86",
+		measurementId: "G-2F2RXTL9GT"
+	};
+
+	firebase.initializeApp(firebaseConfig);
+	const messaging = firebase.messaging();
+
+	function initializeFirebaseMessaging() {
+		messaging.requestPermission()
+			.then(() => messaging.getToken())
+			.then(token => {
+				console.log("Token: ", token);
+				sendToServer(token);
+			})
+			.catch(err => console.error("Permission denied", err));
+	}
+
+	messaging.onMessage(payload => {
+		const notificationOptions = {
+			body: payload.notification.body,
+			icon: payload.notification.icon
+		};
+
+		if (Notification.permission === "granted") {
+			const notification = new Notification(payload.notification.title, notificationOptions);
+			notification.onclick = event => {
+				event.preventDefault();
+				window.open(payload.notification.click_action, "_blank");
+				notification.close();
+			};
+		}
+	});
+
+	messaging.onTokenRefresh(() => {
+		messaging.getToken().then(newToken => {
+			console.log("New Token: ", newToken);
+			sendToServer(newToken);
+		}).catch(console.error);
+	});
+
+	function sendToServer(token) {
+		$.ajax({
+			url: "{% url 'employee_fcmtoken' %}",
+			method: "POST",
+			data: { token: token },
+			headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+		}).done(() => {
+			console.log("Token sent to server");
+		}).fail(err => {
+			console.error("Failed to send token", err);
+		});
+	}
+
+	initializeFirebaseMessaging();
+</script>
+{% endblock custom_js %}

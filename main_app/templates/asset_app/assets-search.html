@@ -1,0 +1,60 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %}
+    {{ page_title|default:"Search Businesses" }}
+{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+
+                <!-- Search Form Card -->
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title">{{ page_title|default:"Search Businesses" }}</h3>
+                    </div>
+
+                    <form method="get">
+                        <div class="card-body">
+                            <div class="form-row">
+                                {{ filter.form.as_p }}
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-outline-primary">Search</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Search Results -->
+                <div class="card card-primary mt-3">
+                    <div class="card-header">
+                        <h3 class="card-title">Search Results</h3>
+                    </div>
+                    <div class="card-body">
+                        {% if filter.qs %}
+                            <ul class="list-group">
+                                {% for business in filter.qs %}
+                                    <li class="list-group-item">
+                                        <h5 class="mb-1">{{ business.asset_name }}</h5>
+                                        <p class="mb-1"><strong>Serial No:</strong> {{ business.asset_serial_No }}</p>
+                                        <p class="mb-1"><strong>Manufacturer:</strong> {{ business.asset_manufacturer }}</p>
+                                        <p class="mb-1"><strong>Issued:</strong> {{ business.asset_issued }}</p>
+                                        <p class="mb-0"><strong>Assignee:</strong> {{ business.asset_assignee }}</p>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-muted">No businesses found matching your search criteria.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}
