@@ -42,8 +42,8 @@ INSTALLED_APPS = [
     'crispy_forms',
     'crispy_bootstrap4',
     'django_filters',
+    'rest_framework',
 
-    'rest_framework'
 ]
 
 MIDDLEWARE = [
@@ -56,7 +56,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    # 'main_app.middleware.LoginCheckMiddleWare',
+    'main_app.middleware.LoginCheckMiddleWare',
 ]
 
 ROOT_URLCONF = 'office_ops.urls'
@@ -79,6 +79,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'office_ops.wsgi.application'
 
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap4"
+CRISPY_TEMPLATE_PACK = "bootstrap4"
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -96,8 +98,7 @@ DATABASES = {
 
 if not DEBUG:
     AUTH_PASSWORD_VALIDATORS = []
-else:
-    
+else:    
     AUTH_PASSWORD_VALIDATORS = [
         {
             'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -112,7 +113,6 @@ else:
             'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
         },
     ]
-
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
@@ -136,23 +136,17 @@ TIME_ZONE = 'Asia/Kolkata'
 STATIC_URL = 'static/'
 MEDIA_URL = '/media/'
 
-
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 AUTH_USER_MODEL = 'main_app.CustomUser'
-
-# AUTHENTICATION_BACKENDS = ['main_app.EmailBackend.EmailBackend']
-
-CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap4"
-CRISPY_TEMPLATE_PACK = "bootstrap4"
-
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+EMAIL_BACKEND = 'django.core.mail.Backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 

@@ -1,19 +1,5 @@
-"""office_ops URL Configuration
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/3.1/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.urls import path
+from django.contrib.auth import views as auth_views
 
 from main_app.EditSalaryView import EditSalaryView
 
@@ -21,7 +7,7 @@ from . import ceo_views, manager_views, employee_views, views
 
 urlpatterns = [
      path("", views.login_page, name='login_page'),
-     path("get_attendance", views.get_attendance, name='get_attendance'),
+     # path("get_attendance", views.get_attendance, name='get_attendance'),
      path("firebase-messaging-sw.js", views.showFirebaseJS, name='showFirebaseJS'),
      path("doLogin/", views.doLogin, name='user_login'),
      path("logout_user/", views.logout_user, name='user_logout'),
@@ -49,8 +35,7 @@ urlpatterns = [
      path("manager/view/leave/", ceo_views.view_manager_leave, name="view_manager_leave",),
      path("attendance/view/", ceo_views.admin_view_attendance,
           name="admin_view_attendance",),
-     path("attendance/fetch/", ceo_views.get_admin_attendance,
-          name='get_admin_attendance'),
+     # path("attendance/fetch/", ceo_views.get_admin_attendance,name='get_admin_attendance'),
      path("employee/add/", ceo_views.add_employee, name='add_employee'),
      path("department/add/", ceo_views.add_department, name='add_department'),
      path("manager/manage/", ceo_views.manage_manager, name='manage_manager'),
@@ -76,7 +61,12 @@ urlpatterns = [
      path("department/edit/<int:department_id>",
           ceo_views.edit_department, name='edit_department'),
 
-     path('clock_action/', views.clock_action,name='clock_action'),
+
+     path('clock-in-out/', views.clock_in_out, name='clock_in_out'),
+     path('break/', views.break_action, name='break_action'),
+
+     path('api/attendance/clock/', views.AttendanceActionView.as_view(), name='clock_in_out_api'),
+     
 
      # Manager
      path("manager/home/", manager_views.manager_home, name='manager_home'),
@@ -113,11 +103,9 @@ urlpatterns = [
      path('manager/leave-reject/<int:leave_id>/', manager_views.reject_leave_request,
           name='reject_leave_request'),
 
-
      # Employee
      path("employee/home/", employee_views.employee_home, name='employee_home'),
-     path("employee/view/attendance/", employee_views.employee_view_attendance,
-          name='employee_view_attendance'),
+     path("employee/view/attendance/", employee_views.employee_view_attendance,name='employee_view_attendance'),
      path("employee/apply/leave/", employee_views.employee_apply_leave,
           name='employee_apply_leave'),
      path("employee/feedback/", employee_views.employee_feedback,
@@ -129,7 +117,7 @@ urlpatterns = [
      path("employee/view/notification/", employee_views.employee_view_notification,
           name="employee_view_notification"),
      path('employee/view/salary/', employee_views.employee_view_salary,
-          name='employee_view_salary'),  
+          name='employee_view_salary'),
      path('employee/view/requests-status/', employee_views.employee_requests,
           name='employee_requests'),  
 ]

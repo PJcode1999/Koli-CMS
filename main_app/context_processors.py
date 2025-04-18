@@ -1,11 +1,11 @@
-from .models import CustomUser, Timesheet
+from .models import CustomUser, AttendanceRecord
 from django.utils import timezone
 from django.contrib.auth.models import AnonymousUser
 
+
 def clock_times(request):
     context = {
-        'latest_clockin': None,
-        'latest_clockout': None
+        "latest_entry": None,
     }
 
     user = request.user
@@ -14,12 +14,9 @@ def clock_times(request):
 
     try:
         custom_user = CustomUser.objects.get(id=user.id)
+        latest_entry = AttendanceRecord.objects.filter(user=custom_user).order_by("-clock_in").first()
+        context["latest_entry"] = latest_entry
 
-        last_clockin = Timesheet.objects.filter(custom_user=custom_user, logging="IN").order_by('-clocking_time').first()
-        last_clockout = Timesheet.objects.filter(custom_user=custom_user, logging="OUT").order_by('-clocking_time').first()
-
-        context['latest_clockin'] = last_clockin.clocking_time if last_clockin else None
-        context['latest_clockout'] = last_clockout.clocking_time if last_clockout else None
     except CustomUser.DoesNotExist:
         pass
 

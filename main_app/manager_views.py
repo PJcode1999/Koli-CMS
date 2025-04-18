@@ -18,12 +18,12 @@ def manager_home(request):
     total_leave = LeaveReportManager.objects.filter(manager=manager).count()
     departments = Department.objects.filter(division=manager.division)
     total_department = departments.count()
-    attendance_list = Attendance.objects.filter(department__in=departments)
+    attendance_list = AttendanceRecord.objects.filter(department__in=departments)
     total_attendance = attendance_list.count()
     attendance_list = []
     department_list = []
     for department in departments:
-        attendance_count = Attendance.objects.filter(department=department).count()
+        attendance_count = AttendanceRecord.objects.filter(department=department).count()
         department_list.append(department.name)
         attendance_list.append(attendance_count)
     context = {

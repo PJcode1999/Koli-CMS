@@ -1,56 +1,66 @@
-import json,requests
+import json
+import requests
 from django.contrib import messages
-from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth import authenticate, login, logout
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.views.decorators.csrf import csrf_exempt
-from .EmailBackend import EmailBackend
+from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from datetime import date
+import psutil
 from .forms import *
 from .models import *
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.authentication import BasicAuthentication
+from rest_framework import status
+# Create your views here.
 
 
 def login_page(request):
     if request.user.is_authenticated:
-        if request.user.user_type == '1':
+        if request.user.user_type == "1":
             return redirect(reverse("admin_home"))
-        elif request.user.user_type == '2':
+        elif request.user.user_type == "2":
             return redirect(reverse("manager_home"))
         else:
             return redirect(reverse("employee_home"))
-    return render(request, 'main_app/login.html')
+    return render(request, "main_app/login.html")
 
 
 def doLogin(request, **kwargs):
-    if request.method != 'POST':
+    if request.method != "POST":
         return HttpResponse("<h4>Denied</h4>")
     else:
-        captcha_token = request.POST.get('g-recaptcha-response')
+        # Google recaptcha
+        captcha_token = request.POST.get("g-recaptcha-response")
         captcha_url = "https://www.google.com/recaptcha/api/siteverify"
-        captcha_key = "6LcccxsrAAAAAOe4_jxUb9yj1Tu4gqxaIG5U_HCh"
-        data = {
-            'secret': captcha_key,
-            'response': captcha_token
-        }
+        captcha_key = "6Lc2hxkrAAAAAM8w7HzZTrbA_oXsaSgSdF8hJd4w"
+        data = {"secret": captcha_key, "response": captcha_token}
+        # Make request
         try:
             captcha_server = requests.post(url=captcha_url, data=data)
             response = json.loads(captcha_server.text)
-            if response['success'] == False:
-                messages.error(request, 'Invalid Captcha. Try Again')
-                return redirect('/')
+            if response["success"] == False:
+                messages.error(request, "Invalid Captcha. Try Again")
+                return redirect("/")
         except:
-            messages.error(request, 'Captcha could not be verified. Try Again')
-            return redirect('/')
-        
-        user = authenticate(request, username=request.POST.get('email'), password=request.POST.get('password'))
+            messages.error(request, "Captcha could not be verified. Try Again")
+            return redirect("/")
+
+        # Authenticate
+        user = authenticate(
+            request,
+            username=request.POST.get("email"),
+            password=request.POST.get("password"),
+        )
         if user != None:
             login(request, user)
-            if user.user_type == '1':
+            if user.user_type == "1":
                 return redirect(reverse("admin_home"))
-            elif user.user_type == '2':
+            elif user.user_type == "2":
                 return redirect(reverse("manager_home"))
             else:
                 return redirect(reverse("employee_home"))
@@ -59,102 +69,203 @@ def doLogin(request, **kwargs):
             return redirect("/")
 
 
-
 def logout_user(request):
     if request.user != None:
         logout(request)
     return redirect("/")
 
 
-def clock_action(request):
-    if request.method != "POST":
-        return redirect('home')  
+def get_router_ip():
+    for conn in psutil.net_if_addrs().values():
+        for snic in conn:
+            if snic.family.name == "AF_INET" and snic.address != "127.0.0.1":
+                return snic.address
+    return None
 
-    clock_action = request.POST.get('clock_action', '')
-    user = request.user
 
-    home_route = {
-        '2': 'manager_home',
-        '3': 'employee_home'
-    }.get(user.user_type, 'home')
-    home = redirect(reverse(home_route))
+class AttendanceActionView(APIView):
+    authentication_classes = [BasicAuthentication]
+    permission_classes = [IsAuthenticated]
 
-    custom_user = get_object_or_404(CustomUser, id=user.id, user_type=user.user_type)
-    now = timezone.now()
-    ip_address = request.META.get('REMOTE_ADDR', 'NA')
+    def post(self, request):
+        user = request.user
+        action = request.data.get('action')
+        notes = request.data.get('notes', '')
 
-    try:
-        last_entry = Timesheet.objects.filter(custom_user=custom_user).latest('clocking_time')
-    except Timesheet.DoesNotExist:
-        last_entry = None
+        current_record = AttendanceRecord.objects.filter(
+            user=user, clock_out__isnull=True
+        ).first()
+        if action == 'clockin':
+            if current_record:
+                return Response({'error': 'Already clocked in'}, status=status.HTTP_400_BAD_REQUEST)
 
-    if clock_action == "ClockIn":
-        if not last_entry or last_entry.logging == "OUT":
-            Timesheet.objects.create(
-                custom_user=custom_user,
-                recorded_by=custom_user,
-                recorded_datetime=date.today(),
-                clocking_time=now,
-                logging="IN",
-                ip_address=ip_address
+            new_record = AttendanceRecord.objects.create(
+                user=user,
+                clock_in=timezone.now(),
+                notes=notes,
+                ip_address=get_router_ip()
+            )
+
+            ActivityFeed.objects.create(
+                user=user,
+                activity_type='clock_in',
+                related_record=new_record
+            )
+
+            return Response({'status': 'success', 'action': 'clocked_in'})
+
+        elif action == 'clockout':
+            if not current_record:
+                return Response({'error': 'You are not clocked in'}, status=status.HTTP_400_BAD_REQUEST)
+
+            current_record.clock_out = timezone.now()
+            current_record.notes = notes
+            current_record.save()
+
+            ActivityFeed.objects.create(
+                user=user,
+                activity_type='clock_out',
+                related_record=current_record
+            )
+
+            return Response({'status': 'success', 'action': 'clocked_out'})
+
+        elif action == 'break':
+            if not current_record:
+                return Response({'error': 'You must be clocked in to take a break'}, status=status.HTTP_400_BAD_REQUEST)
+
+            current_break = Break.objects.filter(
+                attendance_record=current_record,
+                break_end__isnull=True
+            ).first()
+
+            if current_break:
+                # End break
+                current_break.break_end = timezone.now()
+                current_break.save()
+
+                ActivityFeed.objects.create(
+                    user=user,
+                    activity_type='break_end',
+                    related_record=current_record
+                )
+                return Response({'status': 'success', 'action': 'break_ended'})
+
+            else:
+                # Start break
+                Break.objects.create(
+                    attendance_record=current_record,
+                    break_start=timezone.now()
+                )
+
+                ActivityFeed.objects.create(
+                    user=user,
+                    activity_type='break_start',
+                    related_record=current_record
+                )
+                return Response({'status': 'success', 'action': 'break_started'})
+
+        else:
+            return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@login_required
+def clock_in_out(request):
+    if request.method == 'POST':
+        current_record = AttendanceRecord.objects.filter(
+            user=request.user, 
+            clock_out__isnull=True
+        ).first()
+        
+        if current_record:
+            # Clock out
+            current_record.clock_out = timezone.now()
+            current_record.notes = request.POST.get('notes', '')
+            current_record.save()
+            
+            ActivityFeed.objects.create(
+                user=request.user,
+                activity_type='clock_out',
+                related_record=current_record
             )
         else:
-            messages.error(request, "You must clock out before you can clock in.")
+            # Clock in
+            department_id = request.POST.get('department')
+            department = Department.objects.get(id=department_id) if department_id else None
+            
+            new_record = AttendanceRecord.objects.create(
+                user=request.user,
+                clock_in=timezone.now(),
+                department=department,
+                notes=request.POST.get('notes', ''),
+                ip_address= get_router_ip()
+            )
+            
+            ActivityFeed.objects.create(
+                user=request.user,
+                activity_type='clock_in',
+                related_record=new_record
+            )
+        
+        return JsonResponse({'status': 'success'})
     
-    elif clock_action == "ClockOut":
-        if last_entry and last_entry.logging == "IN":
-            delta_hours = (now - last_entry.clocking_time).total_seconds() / 3600.0
-            max_hours, min_hours_required = 12, 8
+    # For GET requests, redirect to dashboard
+    return redirect('home')
 
-            if delta_hours < max_hours:
-                Timesheet.objects.create(
-                    custom_user=custom_user,
-                    recorded_by=custom_user,
-                    recorded_datetime=date.today(),
-                    clocking_time=now,
-                    logging="OUT",
-                    ip_address=ip_address
-                )
-
-                attendance_date = last_entry.clocking_time.date()
-                department = (custom_user.employee.department 
-                              if user.user_type == '3' 
-                              else custom_user.manager.department)
-                
-                attendance, _ = Attendance.objects.get_or_create(
-                    date=attendance_date,
-                    department=department
-                )
-
-                if delta_hours >= min_hours_required:
-                    AttendanceReport.objects.get_or_create(
-                        attendance=attendance,
-                        custom_user=custom_user,
-                        defaults={'status': True}
-                    )
-            else:
-                messages.error(request, f"You cannot clock out more than {max_hours} hours after clocking in.")
+@login_required
+def break_action(request):
+    if request.method == 'POST':
+        current_record = AttendanceRecord.objects.filter(
+            user=request.user, 
+            clock_out__isnull=True
+        ).first()
+        
+        if not current_record:
+            return JsonResponse({'error': 'You must be clocked in to take a break'}, status=400)
+        
+        current_break = Break.objects.filter(
+            attendance_record=current_record,
+            break_end__isnull=True
+        ).first()
+        
+        if current_break:
+            # End break
+            current_break.break_end = timezone.now()
+            current_break.save()
+            ActivityFeed.objects.create(
+                user=request.user,
+                activity_type='break_end',
+                related_record=current_record
+            )
+            action = 'break_ended'
         else:
-            messages.error(request, "You must clock in before you can clock out.")
-    else:
-        messages.error(request, "Invalid action.")
-
-    return home
+            # Start break
+            new_break = Break.objects.create(
+                attendance_record=current_record,
+                break_start=timezone.now()
+            )
+            ActivityFeed.objects.create(
+                user=request.user,
+                activity_type='break_start',
+                related_record=current_record
+            )
+            action = 'break_started'
+        
+        return JsonResponse({'status': 'success', 'action': action})
+    
+    return JsonResponse({'error': 'Invalid request'}, status=400)
 
 
 @csrf_exempt
 def get_attendance(request):
-    department_id = request.POST.get('department')
+    department_id = request.POST.get("department")
     try:
         department = get_object_or_404(Department, id=department_id)
-        attendance = Attendance.objects.filter(department=department)
-        
+        attendance = AttendanceRecord.objects.filter(department=department)
+
         attendance_list = []
         for attd in attendance:
-            data = {
-                    "id": attd.id,
-                    "attendance_date": str(attd.date)
-                    }
+            data = {"id": attd.id, "attendance_date": str(attd.date)}
             attendance_list.append(data)
         return JsonResponse(json.dumps(attendance_list), safe=False)
     except Exception as e:
